@@ -71,10 +71,16 @@ export default function AskPalette() {
   const [spot, setSpot] = useState<string | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [guide, setGuide] = useState<{ def: Guide; step: number } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const palRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const path = usePathname();
   const cmds = pageCmds[path] ?? pageCmds["/"];
+
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
 
   const highlight = (key: string) => {
     setSpot(key);
@@ -128,10 +134,15 @@ export default function AskPalette() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const say = (query: string, answer: string) =>
+  const say = (query: string, answer: string) => {
     setMsgs((m) => [...m, `❯ ${query}`, answer]);
+    setToast(answer);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
+  };
 
   const startGuide = (def: Guide) => {
+    setOpen(false);
     setGuide({ def, step: 0 });
     const s = def.steps[0];
     say(def.title, `${def.title} — ${s.text}`);
@@ -183,6 +194,7 @@ export default function AskPalette() {
         return;
       }
       say(label, `I can walk you through: ${guides.map((g) => g.title.toLowerCase()).join(", ")}.`);
+      setOpen(false);
       return;
     }
 
@@ -193,9 +205,11 @@ export default function AskPalette() {
         say(label, answer);
         if (t.page !== path) router.push(t.page);
         highlight(t.key);
+        setOpen(false);
         return;
       }
       say(label, "I couldn't find that. Try “where is the search?” or “where is the pipeline total?”.");
+      setOpen(false);
       return;
     }
 
@@ -318,7 +332,8 @@ export default function AskPalette() {
 
     say(label, answer);
     if (mark) highlight(mark);
-    if (go) setTimeout(() => setOpen(false), 600);
+    if (go) router.push(go);
+    setOpen(false);
   };
 
   return (
@@ -373,34 +388,6 @@ export default function AskPalette() {
                 </button>
               ))}
             </div>
-            {guide && (
-              <div className="mt-2 rounded-lg bg-blue-50 p-2 text-sm dark:bg-blue-950">
-                <p className="font-semibold">{guide.def.title}</p>
-                <p className="mt-1">{guide.def.steps[guide.step].text}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    onClick={() => stepGuide(-1)}
-                    disabled={guide.step === 0}
-                    className="rounded border px-2 py-0.5 text-xs hover:bg-white disabled:opacity-40 dark:border-zinc-700"
-                  >
-                    ← Back
-                  </button>
-                  <button
-                    onClick={() => stepGuide(1)}
-                    disabled={guide.step === guide.def.steps.length - 1}
-                    className="rounded border px-2 py-0.5 text-xs hover:bg-white disabled:opacity-40 dark:border-zinc-700"
-                  >
-                    Next →
-                  </button>
-                  <span className="text-xs text-zinc-500">
-                    Step {guide.step + 1} of {guide.def.steps.length}
-                  </span>
-                  <button onClick={() => setGuide(null)} className="ml-auto text-xs text-zinc-500 hover:underline">
-                    Exit guide ✕
-                  </button>
-                </div>
-              </div>
-            )}
             {msgs.length > 0 && (
               <ul className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto text-sm">
                 {msgs.map((m, i) => (
@@ -414,6 +401,45 @@ export default function AskPalette() {
               </ul>
             )}
           </div>
+        </div>
+      )}
+      {guide && (
+        <div className="fixed bottom-3 left-4 z-40 w-80 rounded-xl bg-white p-3 text-sm shadow-2xl dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-700">
+          <p className="font-semibold">{guide.def.title}</p>
+          <p className="mt-1">{guide.def.steps[guide.step].text}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              onClick={() => stepGuide(-1)}
+              disabled={guide.step === 0}
+              className="rounded border px-2 py-0.5 text-xs hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={() => stepGuide(1)}
+              disabled={guide.step === guide.def.steps.length - 1}
+              className="rounded border px-2 py-0.5 text-xs hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Next →
+            </button>
+            <span className="text-xs text-zinc-500">
+              Step {guide.step + 1} of {guide.def.steps.length}
+            </span>
+            <button
+              onClick={() => {
+                setGuide(null);
+                setSpot(null);
+              }}
+              className="ml-auto text-xs text-zinc-500 hover:underline"
+            >
+              Exit ✕
+            </button>
+          </div>
+        </div>
+      )}
+      {toast && !guide && (
+        <div className="fixed bottom-3 left-4 z-40 max-w-sm rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white shadow-2xl dark:bg-white dark:text-zinc-900">
+          {toast}
         </div>
       )}
     </>
