@@ -36,6 +36,7 @@ export default function AskPalette() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [spot, setSpot] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [guide, setGuide] = useState<{ def: Guide; step: number } | null>(null);
   type ToastMsg = { text: string; action?: { label: string; go: string; spot?: string } };
   const [toast, setToast] = useState<ToastMsg | null>(null);
@@ -54,16 +55,24 @@ export default function AskPalette() {
     pulseTimer.current = null;
     document.querySelectorAll(".guide-pulse").forEach((el) => el.classList.remove("guide-pulse"));
     setSpot(null);
+    setCursor(null);
   };
 
   const pulse = (key: string) => {
     clearPulse();
-    // Skip the nav step when already on the destination page.
     const el = document.querySelector(`[data-spot="${key}"]`) as HTMLElement | null;
     if (!el) return;
     el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     el.classList.add("guide-pulse");
     setSpot(key);
+    // Cursor starts near the top-center (where the palette was) then flies to the target.
+    setCursor({ x: window.innerWidth / 2, y: window.innerHeight * 0.25 });
+    const move = () => {
+      const r = document.querySelector(`[data-spot="${key}"]`)?.getBoundingClientRect();
+      if (r) setCursor({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    };
+    setTimeout(move, 60);
+    setTimeout(move, 450);
     pulseTimer.current = setTimeout(clearPulse, 3000);
   };
 
@@ -434,6 +443,16 @@ export default function AskPalette() {
       <p className="fixed bottom-3 right-4 z-30 rounded-full bg-zinc-900 px-3 py-1 text-xs text-white shadow dark:bg-white dark:text-zinc-900">
         Shift + A to ask
       </p>
+      {cursor && spot && (
+        <span
+          className="pointer-events-none fixed z-50 transition-all duration-700 ease-in-out"
+          style={{ left: cursor.x, top: cursor.y }}
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" className="drop-shadow-lg">
+            <path d="M6 3l14 8-6.5 1.5L10 19z" fill="white" stroke="black" strokeWidth="1.5" strokeLinejoin="round" />
+          </svg>
+        </span>
+      )}
       {open && (
         <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/30 p-4 pt-32" onClick={() => setOpen(false)}>
           <div
