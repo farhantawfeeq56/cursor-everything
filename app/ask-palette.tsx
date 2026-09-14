@@ -42,6 +42,9 @@ export default function AskPalette() {
   const [toast, setToast] = useState<ToastMsg | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Second half of a chained highlight (e.g. sidebar → import button),
+  // fired on arrival so a click mid-chain never loses the next step.
+  const pendingRef = useRef<{ go: string; spot: string } | null>(null);
   const router = useRouter();
   const path = usePathname();
   const cmds = FIXED_CMDS;
@@ -58,10 +61,16 @@ export default function AskPalette() {
     setCursor(null);
   };
 
-  const pulse = (key: string) => {
+  // Retries so post-navigation targets still show when the new page
+  // hasn't rendered yet; a click mid-chain only clears the old step.
+  const pulse = (key: string, attempt = 0) => {
     clearPulse();
     const el = document.querySelector(`[data-spot="${key}"]`) as HTMLElement | null;
-    if (!el) return;
+    if (!el) {
+      // ponytail: bounded poll, gives up silently if the target never renders
+      if (attempt < 15) pulseTimer.current = setTimeout(() => pulse(key, attempt + 1), 200);
+      return;
+    }
     el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     el.classList.add("guide-pulse");
     setSpot(key);
@@ -83,15 +92,25 @@ export default function AskPalette() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 6000);
     setOpen(false);
+    pendingRef.current = action?.spot ? { go: action.go, spot: action.spot } : null;
     if (key) pulse(key);
   };
 
   const goThere = (action: { label: string; go: string; spot?: string }) => {
     router.push(action.go);
-    const target = action.spot;
-    if (target) setTimeout(() => pulse(target), 600);
     setToast((t) => (t ? { text: t.text } : t));
   };
+
+  // Finish a chained highlight on arrival — covers both the toast tap
+  // and manual nav (e.g. clicking the sidebar instead of the toast).
+  useEffect(() => {
+    const p = pendingRef.current;
+    if (p && path === p.go) {
+      pendingRef.current = null;
+      pulse(p.spot);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path]);
 
   // Dismiss pulse on any click (attached late so the originating click doesn't clear it).
   useEffect(() => {
@@ -112,6 +131,7 @@ export default function AskPalette() {
         // Shift+A while pulsing only stops the pulse — it doesn't reopen the modal.
         if (spot) {
           clearPulse();
+          pendingRef.current = null;
           return;
         }
         setOpen((v) => {
@@ -123,6 +143,7 @@ export default function AskPalette() {
         setOpen(false);
         setGuide(null);
         clearPulse();
+        pendingRef.current = null;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -137,6 +158,7 @@ export default function AskPalette() {
 
   const startGuide = (def: Guide) => {
     setOpen(false);
+    pendingRef.current = null;
     setGuide({ def, step: 0 });
     const s = def.steps[0];
     say(def.title, `${def.title} — ${s.text}`);
