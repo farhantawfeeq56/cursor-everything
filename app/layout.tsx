@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DM_Sans } from "next/font/google";
+import AskPalette from "./ask-palette";
 import "./globals.css";
+
+const dmSans = DM_Sans({ subsets: ["latin"] });
 
 export const metadata: Metadata = { title: "CRM", description: "Basic CRM" };
 
@@ -14,7 +18,7 @@ const nav = [
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full">
-      <body className="min-h-full bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+      <body className={`${dmSans.className} min-h-full bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100`}>
         <div className="flex min-h-screen">
           <aside className="w-48 shrink-0 bg-zinc-900 p-4 text-white">
             <p className="mb-6 text-lg font-bold">Mini CRM</p>
@@ -28,6 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </aside>
           <main className="flex-1 p-6">{children}</main>
         </div>
+        <AskPalette />
       </body>
     </html>
   );

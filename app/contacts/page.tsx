@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { load, save, uid, type Contact } from "@/lib/crm";
 
 const input = "rounded border border-zinc-300 bg-white px-2 py-1 text-sm w-full dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-400";
@@ -7,6 +7,8 @@ const input = "rounded border border-zinc-300 bg-white px-2 py-1 text-sm w-full 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [q, setQ] = useState("");
+  const [sortAsc, setSortAsc] = useState(true);
+  const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", company: "", phone: "" });
   useEffect(() => setContacts(load().contacts), []);
   const update = (next: Contact[]) => {
@@ -14,10 +16,21 @@ export default function ContactsPage() {
     const crm = load();
     save({ ...crm, contacts: next });
   };
-  const shown = contacts.filter((c) => `${c.name} ${c.email} ${c.company}`.toLowerCase().includes(q.toLowerCase()));
+  const shown = useMemo(() => contacts
+    .filter((c) => `${c.name} ${c.email} ${c.company}`.toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)),
+    [contacts, q, sortAsc]);
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold">Contacts</h1>
+      <div data-spot="Contacts" className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-white px-3 py-1 text-sm shadow-sm dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-800">{contacts.length} total</span>
+        <span className="rounded-full bg-white px-3 py-1 text-sm shadow-sm dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-800">{shown.length} shown</span>
+        <button onClick={() => setSortAsc((v) => !v)} className="rounded-full border px-3 py-1 text-sm hover:bg-white dark:border-zinc-700 dark:hover:bg-zinc-900">
+          Sort {sortAsc ? "A→Z" : "Z→A"}
+        </button>
+        {q && <button onClick={() => setQ("")} className="rounded-full border px-3 py-1 text-sm hover:bg-white dark:border-zinc-700 dark:hover:bg-zinc-900">Clear search ✕</button>}
+      </div>
       <div className="flex gap-2">
         <input className={input} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
@@ -46,17 +59,31 @@ export default function ContactsPage() {
         <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
           {shown.map((c) => (
             <tr key={c.id}>
-              <td className="px-3 py-2 font-medium">{c.name}</td>
-              <td className="px-3 py-2">{c.email}</td>
-              <td className="px-3 py-2">{c.company}</td>
-              <td className="px-3 py-2">{c.phone}</td>
-              <td className="px-3 py-2 text-right">
-                <button className="text-red-600 hover:underline" onClick={() => update(contacts.filter((x) => x.id !== c.id))}>Delete</button>
-              </td>
+              {editing === c.id ? (
+                <>
+                  <td className="px-3 py-2"><input autoFocus className={input} value={c.name} onChange={(e) => update(contacts.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></td>
+                  <td className="px-3 py-2"><input className={input} value={c.email} onChange={(e) => update(contacts.map((x) => x.id === c.id ? { ...x, email: e.target.value } : x))} /></td>
+                  <td className="px-3 py-2"><input className={input} value={c.company} onChange={(e) => update(contacts.map((x) => x.id === c.id ? { ...x, company: e.target.value } : x))} /></td>
+                  <td className="px-3 py-2"><input className={input} value={c.phone} onChange={(e) => update(contacts.map((x) => x.id === c.id ? { ...x, phone: e.target.value } : x))} /></td>
+                  <td className="px-3 py-2 text-right"><button className="text-sm text-green-600 hover:underline" onClick={() => setEditing(null)}>Done</button></td>
+                </>
+              ) : (
+                <>
+                  <td className="px-3 py-2 font-medium">{c.name}</td>
+                  <td className="px-3 py-2">{c.email}</td>
+                  <td className="px-3 py-2">{c.company}</td>
+                  <td className="px-3 py-2">{c.phone}</td>
+                  <td className="px-3 py-2 text-right">
+                    <button className="mr-3 hover:underline" onClick={() => setEditing(c.id)}>Edit</button>
+                    <button className="text-red-600 hover:underline" onClick={() => update(contacts.filter((x) => x.id !== c.id))}>Delete</button>
+                  </td>
+                </>
+              )}
             </tr>
           ))}
         </tbody>
       </table>
+      <p className="text-xs text-zinc-500">Press Shift + A to ask</p>
     </div>
   );
 }
