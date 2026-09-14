@@ -175,6 +175,7 @@ export default function TasksPage() {
         {filters.map((f) => (
           <button
             key={f}
+            data-spot={f === "Open" ? "tasks-open-filter" : undefined}
             onClick={() => setFilter(f)}
             className={`${btnGhost} ${filter === f ? "!border-indigo-600 !bg-indigo-600 !text-white dark:!border-indigo-500 dark:!bg-indigo-600" : ""}`}
           >

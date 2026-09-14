@@ -6,41 +6,15 @@ import { findTarget, findGuide, guides, type Guide } from "@/lib/guide";
 
 /**
  * Global command palette (Shift + A, works on every page).
- * Suggestions are different on every page — a mix of
- * Guide (how do I…), Find (where is…), Ask (answers) and
- * Act (does it) options. Every option really executes.
+ * Same 4 suggestions everywhere. Answers show as a toast;
+ * targets pulse with an on-brand ring (no history, no cursor).
  */
-const pageCmds: Record<string, string[]> = {
-  "/": [
-    "How do I add a deal?",
-    "Where is the pipeline total?",
-    "What is my pipeline worth?",
-    "Advance Qualified → Won",
-    "How many open tasks?",
-    "Back up my data",
-  ],
-  "/deals": [
-    "How do I move a deal to Won?",
-    "Where is the deal search?",
-    "Advance Qualified → Won",
-    "Qualify all Leads",
-    "What is my biggest open deal?",
-  ],
-  "/contacts": [
-    "How do I add a contact?",
-    "Where is the contact search?",
-    "Who has the most open deals?",
-    "Add demo contact",
-    "How many contacts?",
-  ],
-  "/tasks": [
-    "How do I complete a task?",
-    "Where are the task filters?",
-    "Complete overdue tasks",
-    "What is due today?",
-    "Clear completed tasks",
-  ],
-};
+const FIXED_CMDS = [
+  "Where is the settings?",
+  "How to export backup?",
+  "How to get all my open tasks?",
+  "I want to edit the contact details of Liam Fox",
+];
 
 const HELP =
   "I can guide you step-by-step (try “how do I…”), find anything on screen (“where is…”), answer questions, and take action. Try a suggestion below.";
@@ -60,54 +34,58 @@ function winRate() {
 
 export default function AskPalette() {
   const [open, setOpen] = useState(false);
-  const [msgs, setMsgs] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [spot, setSpot] = useState<string | null>(null);
-  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [guide, setGuide] = useState<{ def: Guide; step: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const palRef = useRef<HTMLDivElement | null>(null);
+  const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
   const path = usePathname();
-  const cmds = pageCmds[path] ?? pageCmds["/"];
+  const cmds = FIXED_CMDS;
 
   useEffect(() => () => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
-  const highlight = (key: string) => {
-    setSpot(key);
-    // Flash an outline on the target so it is unmissable, then clean up.
-    setTimeout(() => {
-      const el = document.querySelector(`[data-spot="${key}"]`) as HTMLElement | null;
-      if (!el) return;
-      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      const prev = el.style.outline;
-      el.style.outline = "3px solid #f59e0b";
-      el.style.outlineOffset = "2px";
-      setTimeout(() => {
-        el.style.outline = prev;
-        el.style.outlineOffset = "";
-      }, 2500);
-    }, 350);
+  const clearPulse = () => {
+    if (pulseTimer.current) clearTimeout(pulseTimer.current);
+    pulseTimer.current = null;
+    document.querySelectorAll(".guide-pulse").forEach((el) => el.classList.remove("guide-pulse"));
+    setSpot(null);
   };
 
-  useEffect(() => {
-    if (!spot) {
-      setCursor(null);
-      return;
+  const pulse = (key: string) => {
+    clearPulse();
+    // Skip the nav step when already on the destination page.
+    const el = document.querySelector(`[data-spot="${key}"]`) as HTMLElement | null;
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    el.classList.add("guide-pulse");
+    setSpot(key);
+    pulseTimer.current = setTimeout(clearPulse, 3000);
+  };
+
+  const pulseThen = (first: string | null, go: string | null, second: string | null, answer: string, query: string) => {
+    say(query, answer);
+    setOpen(false);
+    if (first) pulse(first);
+    if (go) {
+      setTimeout(() => router.push(go), first ? 900 : 0);
+      if (second) setTimeout(() => pulse(second), first ? 1500 : 600);
+    } else if (second) {
+      if (first) setTimeout(() => pulse(second), 900);
+      else pulse(second);
     }
-    const el = document.querySelector(`[data-spot="${spot}"]`);
-    const pal = palRef.current?.getBoundingClientRect();
-    const start = pal
-      ? { x: pal.left + pal.width / 2, y: pal.top + pal.height / 2 }
-      : { x: innerWidth / 2, y: innerHeight / 3 };
-    setCursor(start);
+  };
+
+  // Dismiss pulse on any click (attached late so the originating click doesn't clear it).
+  useEffect(() => {
+    if (!spot) return;
     const t = setTimeout(() => {
-      const r = el?.getBoundingClientRect();
-      if (r) setCursor({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    }, 50);
+      const onClick = () => clearPulse();
+      window.addEventListener("click", onClick, { once: true });
+    }, 200);
     return () => clearTimeout(t);
   }, [spot]);
 
@@ -117,19 +95,27 @@ export default function AskPalette() {
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
       if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        setOpen((v) => !v);
+        // Shift+A while pulsing only stops the pulse — it doesn't reopen the modal.
+        if (spot) {
+          clearPulse();
+          return;
+        }
+        setOpen((v) => {
+          if (!v) setDraft("");
+          return !v;
+        });
       }
       if (e.key === "Escape") {
         setOpen(false);
         setGuide(null);
+        clearPulse();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [spot]);
 
   const say = (query: string, answer: string) => {
-    setMsgs((m) => [...m, `❯ ${query}`, answer]);
     setToast(answer);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 4500);
@@ -141,7 +127,7 @@ export default function AskPalette() {
     const s = def.steps[0];
     say(def.title, `${def.title} — ${s.text}`);
     if (s.go !== path) router.push(s.go);
-    highlight(s.spot);
+    setTimeout(() => pulse(s.spot), s.go !== path ? 600 : 0);
   };
 
   const stepGuide = (dir: 1 | -1) => {
@@ -151,13 +137,54 @@ export default function AskPalette() {
       const s = g.def.steps[next];
       say(dir > 0 ? "Next step" : "Previous step", s.text);
       if (s.go !== path) router.push(s.go);
-      highlight(s.spot);
+      setTimeout(() => pulse(s.spot), s.go !== path ? 600 : 0);
       return { ...g, step: next };
     });
   };
 
   const run = (label: string) => {
     const q = label.toLowerCase().trim();
+
+    // The 4 fixed questions — handled first with chained pulsing nav → target.
+    const isSettingsQ = q.includes("setting") && (q.startsWith("where") || q.includes("where"));
+    const isLiamQ = q.includes("liam") && (q.includes("edit") || q.includes("contact"));
+    const isExportQ = !isLiamQ && (q.includes("export") || q.includes("backup") || q.includes("back up"));
+    const isOpenTasksQ = !isLiamQ && !isExportQ && q.includes("task") && (q.includes("open") || q.includes("all") || q.includes("get") || q.includes("my"));
+
+    if (isSettingsQ) {
+      if (path === "/settings") {
+        say(label, "You're already on the Settings page — goal, backup and reset are all here.");
+        setOpen(false);
+      } else {
+        pulseThen("nav-settings", "/settings", null, "Settings lives in the sidebar — taking you there.", label);
+      }
+      return;
+    }
+    if (isExportQ) {
+      if (path === "/settings") {
+        pulseThen(null, null, "export-backup-btn", "Click Export backup in Settings to download a JSON backup.", label);
+      } else {
+        pulseThen("nav-settings", "/settings", "export-backup-btn", "Go to Settings (sidebar), then click Export backup.", label);
+      }
+      return;
+    }
+    if (isOpenTasksQ) {
+      if (path === "/tasks") {
+        pulseThen(null, null, "tasks-open-filter", "Click Open on the Tasks page to see all your open tasks.", label);
+      } else {
+        pulseThen("nav-tasks", "/tasks", "tasks-open-filter", "Go to Tasks (sidebar), then click Open to see all open tasks.", label);
+      }
+      return;
+    }
+    if (isLiamQ) {
+      if (path === "/contacts") {
+        pulseThen(null, null, "edit-contact-Liam Fox", "On the Contacts page, click Edit on Liam Fox's row to change his details.", label);
+      } else {
+        pulseThen("nav-contacts", "/contacts", "edit-contact-Liam Fox", "Go to Contacts (sidebar), then click Edit on Liam Fox's row.", label);
+      }
+      return;
+    }
+
     const crm = load();
     let answer = "";
     let go: string | null = null;
@@ -204,9 +231,13 @@ export default function AskPalette() {
       if (t) {
         answer = `${t.label}: ${t.hint}.`;
         say(label, answer);
-        if (t.page !== path) router.push(t.page);
-        highlight(t.key);
         setOpen(false);
+        if (t.page !== path) {
+          router.push(t.page);
+          setTimeout(() => pulse(t.key), 600);
+        } else {
+          pulse(t.key);
+        }
         return;
       }
       say(label, "I couldn't find that. Try “where is the search?” or “where is the pipeline total?”.");
@@ -370,7 +401,7 @@ export default function AskPalette() {
     }
 
     say(label, answer);
-    if (mark) highlight(mark);
+    if (mark) setTimeout(() => pulse(mark), go ? 600 : 0);
     if (go) router.push(go);
     setOpen(false);
   };
@@ -380,20 +411,9 @@ export default function AskPalette() {
       <p className="fixed bottom-3 right-4 z-30 rounded-full bg-zinc-900 px-3 py-1 text-xs text-white shadow dark:bg-white dark:text-zinc-900">
         Shift + A to ask
       </p>
-      {cursor && spot && (
-        <span
-          className="pointer-events-none fixed z-50 transition-all duration-1000 ease-in-out"
-          style={{ left: cursor.x, top: cursor.y }}
-        >
-          <svg width="28" height="28" viewBox="0 0 24 24" className="drop-shadow-lg">
-            <path d="M6 3l14 8-6.5 1.5L10 19z" fill="white" stroke="black" strokeWidth="1.5" strokeLinejoin="round" />
-          </svg>
-        </span>
-      )}
       {open && (
         <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/30 p-4 pt-32" onClick={() => setOpen(false)}>
           <div
-            ref={palRef}
             onClick={(e) => e.stopPropagation()}
             className="flex w-full max-w-md flex-col rounded-xl bg-white p-4 shadow-2xl dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-800"
           >
@@ -426,18 +446,6 @@ export default function AskPalette() {
                 </button>
               ))}
             </div>
-            {msgs.length > 0 && (
-              <ul className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto text-sm">
-                {msgs.map((m, i) => (
-                  <li
-                    key={i}
-                    className={`rounded px-2 py-1 ${m.startsWith("❯") ? "bg-zinc-100 dark:bg-zinc-800" : "bg-green-50 dark:bg-green-950"}`}
-                  >
-                    {m}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         </div>
       )}
@@ -466,7 +474,7 @@ export default function AskPalette() {
             <button
               onClick={() => {
                 setGuide(null);
-                setSpot(null);
+                clearPulse();
               }}
               className="ml-auto text-xs text-zinc-500 hover:underline"
             >

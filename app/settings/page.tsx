@@ -83,7 +83,7 @@ export default function SettingsPage() {
         <h2 className="font-semibold">Backup & restore</h2>
         <p className={`${pageSub} mb-3 text-xs`}>Your data lives in this browser. Export a backup before switching devices.</p>
         <div className="flex flex-wrap gap-2">
-          <button onClick={doExport} className={btnPrimary}>
+          <button onClick={doExport} data-spot="export-backup-btn" className={btnPrimary}>
             Export backup ⬇
           </button>
           <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-zinc-300 px-3.5 py-1.5 text-sm font-medium transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">

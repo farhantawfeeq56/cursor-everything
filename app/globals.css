@@ -25,3 +25,15 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* On-brand pulsing emphasis for guided targets (indigo, distinct from status colors). */
+@keyframes guide-pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 5px #4f46e5; }
+  50% { box-shadow: 0 0 0 2px #fff, 0 0 0 9px #a5b4fc; }
+}
+.guide-pulse {
+  outline: 2px solid #4f46e5 !important;
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+  animation: guide-pulse-ring 1s ease-in-out infinite;
+}
