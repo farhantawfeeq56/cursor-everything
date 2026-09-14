@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { load, mutate, uid } from "@/lib/crm";
+import { load, mutate, uid, exportData, download, getGoal } from "@/lib/crm";
 import { findTarget, findGuide, guides, type Guide } from "@/lib/guide";
 
 /**
@@ -17,6 +17,7 @@ const pageCmds: Record<string, string[]> = {
     "What is my pipeline worth?",
     "Advance Qualified → Won",
     "How many open tasks?",
+    "Back up my data",
   ],
   "/deals": [
     "How do I move a deal to Won?",
@@ -171,9 +172,16 @@ export default function AskPalette() {
       (q.includes("qualified") && q.includes("won") && (q.includes("advance") || q.includes("move") || q.includes("all")));
     const isQualifyLeads = q.includes("qualify") && q.includes("lead");
     const isClearLost = q.includes("clear") && q.includes("lost");
-    const isCompleteOverdue = q.includes("overdue") || (q.includes("complete") && q.includes("task"));
+    const mentionsOverdue = q.includes("overdue");
+    const isCompleteOverdue =
+      mentionsOverdue &&
+      (q.includes("complete") || q.includes("finish") || q.includes("mark") || q.includes("done") || q.includes("clear"));
     const isClearDone = q.includes("clear") && q.includes("complet");
     const isDueToday = q.includes("due today");
+    const isClosing = q.includes("closing") || q.includes("close date");
+    const isExport =
+      q.includes("export") || q.includes("backup") || q.includes("back up") || q.includes("download");
+    const isGoal = q.includes("goal") || q.includes("target");
     const isBiggest = q.includes("biggest");
     const isMostDeals = q.includes("most") && q.includes("deal");
     const isAddContact = q.includes("add") && q.includes("contact");
@@ -232,6 +240,26 @@ export default function AskPalette() {
       if (n) mutate((c) => ({ ...c, deals: c.deals.filter((d) => d.stage !== "Lost") }));
       answer = n ? `Cleared ${n} lost deal${n > 1 ? "s" : ""}.` : "No lost deals to clear.";
       mark = "Open deals";
+    } else if (isClosing) {
+      const cutoff = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+      const closing = crm.deals.filter(
+        (d) => (d.stage === "Lead" || d.stage === "Qualified") && d.closeDate && d.closeDate <= cutoff
+      );
+      answer = closing.length
+        ? `Closing within 14 days: ${closing.map((d) => `"${d.title}" (${d.closeDate})`).join(", ")}.`
+        : "Nothing closing in the next 14 days.";
+      if (path !== "/deals") go = "/deals";
+      mark = "Open deals";
+    } else if (isExport) {
+      download(`crm-backup-${new Date().toISOString().slice(0, 10)}.json`, exportData());
+      answer = "Backup downloaded as JSON.";
+    } else if (isGoal) {
+      const target = getGoal();
+      const won = crm.deals.filter((d) => d.stage === "Won").reduce((s, d) => s + d.value, 0);
+      const pct = Math.min(100, Math.round((won / target) * 100));
+      answer = `$${won.toLocaleString()} won of $${target.toLocaleString()} goal (${pct}%).`;
+      if (path !== "/") go = "/";
+      mark = "Revenue goal";
     } else if (q.includes("pipeline") || q.includes("worth")) {
       const open = crm.deals.filter((d) => d.stage === "Lead" || d.stage === "Qualified").length;
       answer = `Pipeline $${pipelineValue().toLocaleString()} across ${open} open deals.`;
@@ -270,16 +298,34 @@ export default function AskPalette() {
       answer = due.length ? `Due today: ${due.map((t) => `"${t.title}"`).join(", ")}.` : "Nothing due today.";
       if (path !== "/tasks") go = "/tasks";
       mark = "Tasks due";
-    } else if (isCompleteOverdue) {
+    } else if (mentionsOverdue) {
       const today = new Date().toISOString().slice(0, 10);
-      const n = crm.tasks.filter((t) => !t.done && t.due && t.due < today).length;
-      if (n) {
-        mutate((c) => ({
-          ...c,
-          tasks: c.tasks.map((t) => (!t.done && t.due && t.due < today ? { ...t, done: true } : t)),
-        }));
+      if (isCompleteOverdue) {
+        const n = crm.tasks.filter((t) => !t.done && t.due && t.due < today).length;
+        if (n) {
+          mutate((c) => ({
+            ...c,
+            tasks: c.tasks.map((t) => (!t.done && t.due && t.due < today ? { ...t, done: true } : t)),
+          }));
+        }
+        answer = n ? `Completed ${n} overdue task${n > 1 ? "s" : ""}.` : "No overdue tasks.";
+      } else {
+        const overdueTasks = crm.tasks.filter((t) => !t.done && t.due && t.due < today);
+        const staleDeals = crm.deals.filter(
+          (d) => (d.stage === "Lead" || d.stage === "Qualified") && d.closeDate && d.closeDate < today
+        );
+        if (!overdueTasks.length && !staleDeals.length) {
+          answer = "Nothing overdue — all clear.";
+        } else {
+          const parts: string[] = [];
+          if (overdueTasks.length)
+            parts.push(`${overdueTasks.length} overdue task${overdueTasks.length > 1 ? "s" : ""}: ${overdueTasks.map((t) => `"${t.title}"`).join(", ")}.`);
+          if (staleDeals.length)
+            parts.push(`${staleDeals.length} deal${staleDeals.length > 1 ? "s" : ""} past close date: ${staleDeals.map((d) => `"${d.title}"`).join(", ")}.`);
+          answer = parts.join(" ");
+        }
       }
-      answer = n ? `Completed ${n} overdue task${n > 1 ? "s" : ""}.` : "No overdue tasks.";
+      if (path !== "/tasks") go = "/tasks";
       mark = "Tasks due";
     } else if (isClearDone) {
       const n = crm.tasks.filter((t) => t.done).length;
@@ -298,7 +344,7 @@ export default function AskPalette() {
     } else if (isAddContact) {
       mutate((c) => ({
         ...c,
-        contacts: [...c.contacts, { id: uid("c"), name: "Demo Contact", email: "demo@example.com", company: "Demo", phone: "555-0100" }],
+        contacts: [...c.contacts, { id: uid("c"), name: "Demo Contact", email: "demo@example.com", company: "Demo", phone: "555-0100", notes: "" }],
       }));
       answer = "Added Demo Contact.";
       if (path !== "/contacts") go = "/contacts";

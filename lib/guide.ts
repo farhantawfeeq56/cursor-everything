@@ -23,6 +23,10 @@ export const targets: GuideTarget[] = [
   { key: "Add task form", page: "/tasks", label: "Add task form", hint: "below the counters on the Tasks page — title plus due date", keywords: ["add task", "new task", "create task", "task form"] },
   { key: "Task filters", page: "/tasks", label: "Task filters", hint: "the All / Open / Done buttons on the Tasks page", keywords: ["filter tasks", "task filter", "all open done"] },
   { key: "Tasks due", page: "/tasks", label: "Task list", hint: "the task list itself — tick the box to complete, Edit to change", keywords: ["task list", "my tasks", "checkbox"] },
+  { key: "Pipeline chart", page: "/", label: "Pipeline chart", hint: "on the dashboard — value per stage as bars", keywords: ["chart", "pipeline chart", "bars", "graph"] },
+  { key: "Revenue goal", page: "/", label: "Revenue goal", hint: "on the dashboard — won revenue vs target (change it in Settings)", keywords: ["goal", "target", "revenue goal"] },
+  { key: "Data backup", page: "/settings", label: "Backup & restore", hint: "in Settings — export or import your data", keywords: ["backup", "export", "import", "restore", "download data"] },
+  { key: "Settings", page: "/settings", label: "Settings", hint: "the Settings page — goal, backup, reset", keywords: ["settings page", "preferences"] },
 ];
 
 export function findTarget(query: string): GuideTarget | null {
@@ -83,6 +87,15 @@ export const guides: Guide[] = [
       { text: "Step 1 of 3 — Go to the Tasks page.", go: "/tasks", spot: "Tasks due" },
       { text: "Step 2 of 3 — Tick the checkbox next to the task.", go: "/tasks", spot: "Tasks due" },
       { text: "Step 3 of 3 — Switch the filter to Done to verify it moved there.", go: "/tasks", spot: "Task filters" },
+    ],
+  },
+  {
+    id: "backup-data",
+    title: "How to back up my data",
+    keywords: ["back up", "backup", "export data", "save data"],
+    steps: [
+      { text: "Step 1 of 2 — Go to the Settings page.", go: "/settings", spot: "Settings" },
+      { text: "Step 2 of 2 — Click Export backup to download a JSON file. Import it back any time.", go: "/settings", spot: "Data backup" },
     ],
   },
 ];
