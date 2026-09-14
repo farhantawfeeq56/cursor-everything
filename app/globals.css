@@ -26,14 +26,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* On-brand pulsing emphasis for guided targets (indigo, distinct from status colors). */
+/* Subtle on-brand emphasis for guided targets (soft indigo glow). */
 @keyframes guide-pulse-ring {
-  0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 5px #4f46e5; }
-  50% { box-shadow: 0 0 0 2px #fff, 0 0 0 9px #a5b4fc; }
+  0%, 100% { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); }
+  50% { box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.12); }
 }
 .guide-pulse {
-  outline: 2px solid #4f46e5 !important;
+  outline: 1.5px solid #6366f1 !important;
   outline-offset: 2px;
   border-radius: 0.5rem;
-  animation: guide-pulse-ring 1s ease-in-out infinite;
+  animation: guide-pulse-ring 2s ease-in-out infinite;
 }

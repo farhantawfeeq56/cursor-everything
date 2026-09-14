@@ -66,17 +66,11 @@ export default function AskPalette() {
     pulseTimer.current = setTimeout(clearPulse, 3000);
   };
 
-  const pulseThen = (first: string | null, go: string | null, second: string | null, answer: string, query: string) => {
+  // Suggestions only highlight — no navigation, no side effects.
+  const showOnly = (key: string | null, answer: string, query: string) => {
     say(query, answer);
     setOpen(false);
-    if (first) pulse(first);
-    if (go) {
-      setTimeout(() => router.push(go), first ? 900 : 0);
-      if (second) setTimeout(() => pulse(second), first ? 1500 : 600);
-    } else if (second) {
-      if (first) setTimeout(() => pulse(second), 900);
-      else pulse(second);
-    }
+    if (key) pulse(key);
   };
 
   // Dismiss pulse on any click (attached late so the originating click doesn't clear it).
@@ -156,31 +150,31 @@ export default function AskPalette() {
         say(label, "You're already on the Settings page — goal, backup and reset are all here.");
         setOpen(false);
       } else {
-        pulseThen("nav-settings", "/settings", null, "Settings lives in the sidebar — taking you there.", label);
+        showOnly("nav-settings", "Settings lives in the sidebar — highlighted for you.", label);
       }
       return;
     }
     if (isExportQ) {
       if (path === "/settings") {
-        pulseThen(null, null, "export-backup-btn", "Click Export backup in Settings to download a JSON backup.", label);
+        showOnly("export-backup-btn", "Click Export backup in Settings to download a JSON backup.", label);
       } else {
-        pulseThen("nav-settings", "/settings", "export-backup-btn", "Go to Settings (sidebar), then click Export backup.", label);
+        showOnly("nav-settings", "Go to Settings (sidebar), then click Export backup.", label);
       }
       return;
     }
     if (isOpenTasksQ) {
       if (path === "/tasks") {
-        pulseThen(null, null, "tasks-open-filter", "Click Open on the Tasks page to see all your open tasks.", label);
+        showOnly("tasks-open-filter", "Click Open on the Tasks page to see all your open tasks.", label);
       } else {
-        pulseThen("nav-tasks", "/tasks", "tasks-open-filter", "Go to Tasks (sidebar), then click Open to see all open tasks.", label);
+        showOnly("nav-tasks", "Go to Tasks (sidebar), then click Open to see all open tasks.", label);
       }
       return;
     }
     if (isLiamQ) {
       if (path === "/contacts") {
-        pulseThen(null, null, "edit-contact-Liam Fox", "On the Contacts page, click Edit on Liam Fox's row to change his details.", label);
+        showOnly("edit-contact-Liam Fox", "On the Contacts page, click Edit on Liam Fox's row to change his details.", label);
       } else {
-        pulseThen("nav-contacts", "/contacts", "edit-contact-Liam Fox", "Go to Contacts (sidebar), then click Edit on Liam Fox's row.", label);
+        showOnly("nav-contacts", "Go to Contacts (sidebar), then click Edit on Liam Fox's row.", label);
       }
       return;
     }
