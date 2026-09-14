@@ -66,11 +66,18 @@ export default function AskPalette() {
     pulseTimer.current = setTimeout(clearPulse, 3000);
   };
 
-  // Suggestions only highlight — no navigation, no side effects.
-  const showOnly = (key: string | null, answer: string, query: string) => {
+  // Suggestions only highlight — sidebar first, then the target after navigating.
+  const showSteps = (first: string | null, go: string | null, second: string | null, answer: string, query: string) => {
     say(query, answer);
     setOpen(false);
-    if (key) pulse(key);
+    if (first) pulse(first);
+    if (go) {
+      setTimeout(() => router.push(go), first ? 900 : 0);
+      if (second) setTimeout(() => pulse(second), first ? 1500 : 600);
+    } else if (second) {
+      if (first) setTimeout(() => pulse(second), 900);
+      else pulse(second);
+    }
   };
 
   // Dismiss pulse on any click (attached late so the originating click doesn't clear it).
@@ -150,31 +157,31 @@ export default function AskPalette() {
         say(label, "You're already on the Settings page — goal, backup and reset are all here.");
         setOpen(false);
       } else {
-        showOnly("nav-settings", "Settings lives in the sidebar — highlighted for you.", label);
+        showSteps("nav-settings", "/settings", null, "Settings lives in the sidebar — taking you there.", label);
       }
       return;
     }
     if (isExportQ) {
       if (path === "/settings") {
-        showOnly("export-backup-btn", "Click Export backup in Settings to download a JSON backup.", label);
+        showSteps(null, null, "export-backup-btn", "Click Export backup in Settings to download a JSON backup.", label);
       } else {
-        showOnly("nav-settings", "Go to Settings (sidebar), then click Export backup.", label);
+        showSteps("nav-settings", "/settings", "export-backup-btn", "Go to Settings (sidebar), then click Export backup.", label);
       }
       return;
     }
     if (isOpenTasksQ) {
       if (path === "/tasks") {
-        showOnly("tasks-open-filter", "Click Open on the Tasks page to see all your open tasks.", label);
+        showSteps(null, null, "tasks-open-filter", "Click Open on the Tasks page to see all your open tasks.", label);
       } else {
-        showOnly("nav-tasks", "Go to Tasks (sidebar), then click Open to see all open tasks.", label);
+        showSteps("nav-tasks", "/tasks", "tasks-open-filter", "Go to Tasks (sidebar), then click Open to see all open tasks.", label);
       }
       return;
     }
     if (isLiamQ) {
       if (path === "/contacts") {
-        showOnly("edit-contact-Liam Fox", "On the Contacts page, click Edit on Liam Fox's row to change his details.", label);
+        showSteps(null, null, "edit-contact-Liam Fox", "On the Contacts page, click Edit on Liam Fox's row to change his details.", label);
       } else {
-        showOnly("nav-contacts", "Go to Contacts (sidebar), then click Edit on Liam Fox's row.", label);
+        showSteps("nav-contacts", "/contacts", "edit-contact-Liam Fox", "Go to Contacts (sidebar), then click Edit on Liam Fox's row.", label);
       }
       return;
     }
@@ -478,7 +485,7 @@ export default function AskPalette() {
         </div>
       )}
       {toast && !guide && (
-        <div className="fixed bottom-3 left-4 z-40 max-w-sm rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white shadow-2xl dark:bg-white dark:text-zinc-900">
+        <div className="toast-slide-in fixed bottom-3 left-4 z-40 max-w-sm rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white shadow-2xl dark:bg-white dark:text-zinc-900">
           {toast}
         </div>
       )}
