@@ -10,42 +10,35 @@ import { findTarget, findGuide, guides, type Guide } from "@/lib/guide";
  * Guide (how do I…), Find (where is…), Ask (answers) and
  * Act (does it) options. Every option really executes.
  */
-const pageCmds: Record<string, { label: string; kind: string }[]> = {
+const pageCmds: Record<string, string[]> = {
   "/": [
-    { label: "How do I add a deal?", kind: "Guide" },
-    { label: "Where is the pipeline total?", kind: "Find" },
-    { label: "What is my pipeline worth?", kind: "Ask" },
-    { label: "Advance Qualified → Won", kind: "Act" },
-    { label: "How many open tasks?", kind: "Ask" },
+    "How do I add a deal?",
+    "Where is the pipeline total?",
+    "What is my pipeline worth?",
+    "Advance Qualified → Won",
+    "How many open tasks?",
   ],
   "/deals": [
-    { label: "How do I move a deal to Won?", kind: "Guide" },
-    { label: "Where is the deal search?", kind: "Find" },
-    { label: "Advance Qualified → Won", kind: "Act" },
-    { label: "Qualify all Leads", kind: "Act" },
-    { label: "What is my biggest open deal?", kind: "Ask" },
+    "How do I move a deal to Won?",
+    "Where is the deal search?",
+    "Advance Qualified → Won",
+    "Qualify all Leads",
+    "What is my biggest open deal?",
   ],
   "/contacts": [
-    { label: "How do I add a contact?", kind: "Guide" },
-    { label: "Where is the contact search?", kind: "Find" },
-    { label: "Who has the most open deals?", kind: "Ask" },
-    { label: "Add demo contact", kind: "Act" },
-    { label: "How many contacts?", kind: "Ask" },
+    "How do I add a contact?",
+    "Where is the contact search?",
+    "Who has the most open deals?",
+    "Add demo contact",
+    "How many contacts?",
   ],
   "/tasks": [
-    { label: "How do I complete a task?", kind: "Guide" },
-    { label: "Where are the task filters?", kind: "Find" },
-    { label: "Complete overdue tasks", kind: "Act" },
-    { label: "What is due today?", kind: "Ask" },
-    { label: "Clear completed tasks", kind: "Act" },
+    "How do I complete a task?",
+    "Where are the task filters?",
+    "Complete overdue tasks",
+    "What is due today?",
+    "Clear completed tasks",
   ],
-};
-
-const kindColor: Record<string, string> = {
-  Guide: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-  Find: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
-  Ask: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  Act: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
 };
 
 const HELP =
@@ -379,12 +372,11 @@ export default function AskPalette() {
             <div className="mt-2 flex flex-wrap gap-1">
               {cmds.map((c) => (
                 <button
-                  key={c.label}
-                  onClick={() => run(c.label)}
+                  key={c}
+                  onClick={() => run(c)}
                   className="rounded-full border px-2 py-0.5 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                 >
-                  <span className={`mr-1 rounded-full px-1.5 py-px text-[10px] font-semibold ${kindColor[c.kind]}`}>{c.kind}</span>
-                  {c.label}
+                  {c}
                 </button>
               ))}
             </div>
