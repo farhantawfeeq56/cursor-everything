@@ -44,7 +44,7 @@ export default function AskPalette() {
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Second half of a chained highlight (e.g. sidebar → import button),
   // fired on arrival so a click mid-chain never loses the next step.
-  const pendingRef = useRef<{ go: string; spot: string } | null>(null);
+  const pendingRef = useRef<{ go: string; spot: string; at: number } | null>(null);
   const router = useRouter();
   const path = usePathname();
   const cmds = FIXED_CMDS;
@@ -92,7 +92,7 @@ export default function AskPalette() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 6000);
     setOpen(false);
-    pendingRef.current = action?.spot ? { go: action.go, spot: action.spot } : null;
+    pendingRef.current = action?.spot ? { go: action.go, spot: action.spot, at: Date.now() } : null;
     if (key) pulse(key);
   };
 
@@ -101,26 +101,28 @@ export default function AskPalette() {
     setToast((t) => (t ? { text: t.text } : t));
   };
 
-  // Finish a chained highlight on arrival — covers both the toast tap
-  // and manual nav (e.g. clicking the sidebar instead of the toast).
+  // Finish a chained highlight the moment its target appears in the DOM —
+  // covers the toast tap, manual sidebar nav, and slow renders alike.
+  // (Presence-based, so no dependence on router timing.)
   useEffect(() => {
-    const p = pendingRef.current;
-    if (p && path === p.go) {
-      pendingRef.current = null;
-      pulse(p.spot);
-    }
+    const t = setInterval(() => {
+      const p = pendingRef.current;
+      if (!p || Date.now() - p.at > 60000) {
+        if (p) pendingRef.current = null;
+        return;
+      }
+      if (document.querySelector(`[data-spot="${p.spot}"]`)) {
+        pendingRef.current = null;
+        pulse(p.spot);
+      }
+    }, 300);
+    return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path]);
+  }, []);
 
-  // Dismiss pulse on any click (attached late so the originating click doesn't clear it).
-  useEffect(() => {
-    if (!spot) return;
-    const t = setTimeout(() => {
-      const onClick = () => clearPulse();
-      window.addEventListener("click", onClick, { once: true });
-    }, 200);
-    return () => clearTimeout(t);
-  }, [spot]);
+  // Note: no click-to-dismiss — a click mid-chain (toast tap, Next/Back,
+  // sidebar nav) must not kill the highlight; pulses end on their timer,
+  // on arrival of the next step, or via Escape / Shift+A / Exit.
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

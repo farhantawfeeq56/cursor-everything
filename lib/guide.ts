@@ -101,7 +101,8 @@ export const guides: Guide[] = [
 ];
 
 export function findGuide(query: string): Guide | null {
-  const q = query.toLowerCase();
+  // ponytail: strip articles so "add a deal" matches keyword "add deal"
+  const q = query.toLowerCase().replace(/\b(a|an|the|my)\b/g, "").replace(/\s+/g, " ");
   let best: Guide | null = null;
   let bestScore = 0;
   for (const g of guides) {
