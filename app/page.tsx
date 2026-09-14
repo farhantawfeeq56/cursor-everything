@@ -5,7 +5,12 @@ import { load, type Crm } from "@/lib/crm";
 
 export default function Dashboard() {
   const [crm, setCrm] = useState<Crm | null>(null);
-  useEffect(() => setCrm(load()), []);
+  useEffect(() => {
+    const reload = () => setCrm(load());
+    reload();
+    window.addEventListener("crm-changed", reload);
+    return () => window.removeEventListener("crm-changed", reload);
+  }, []);
   const stats = useMemo(() => {
     if (!crm) return null;
     const pipeline = crm.deals.filter((d) => d.stage !== "Lost").reduce((s, d) => s + d.value, 0);

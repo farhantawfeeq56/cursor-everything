@@ -36,3 +36,15 @@ export function load(): Crm {
 export function save(crm: Crm) {
   localStorage.setItem(KEY, JSON.stringify(crm));
 }
+
+export function notify() {
+  window.dispatchEvent(new Event("crm-changed"));
+}
+
+/** Load, transform, save and broadcast in one step. Returns the updated CRM. */
+export function mutate(fn: (crm: Crm) => Crm): Crm {
+  const next = fn(load());
+  save(next);
+  notify();
+  return next;
+}
