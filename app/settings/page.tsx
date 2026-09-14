@@ -86,7 +86,7 @@ export default function SettingsPage() {
           <button onClick={doExport} data-spot="export-backup-btn" className={btnPrimary}>
             Export backup ⬇
           </button>
-          <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-zinc-300 px-3.5 py-1.5 text-sm font-medium transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
+          <button onClick={() => fileRef.current?.click()} data-spot="import-backup-btn" className="rounded-lg border border-zinc-300 px-3.5 py-1.5 text-sm font-medium transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
             Import backup ⬆
           </button>
           <input

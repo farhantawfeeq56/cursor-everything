@@ -11,7 +11,7 @@ import { findTarget, findGuide, guides, type Guide } from "@/lib/guide";
  */
 const FIXED_CMDS = [
   "Where is the settings?",
-  "How to export backup?",
+  "How to import backup?",
   "How to get all my open tasks?",
   "I want to edit the contact details of Liam Fox",
 ];
@@ -37,7 +37,8 @@ export default function AskPalette() {
   const [draft, setDraft] = useState("");
   const [spot, setSpot] = useState<string | null>(null);
   const [guide, setGuide] = useState<{ def: Guide; step: number } | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  type ToastMsg = { text: string; action?: { label: string; go: string; spot?: string } };
+  const [toast, setToast] = useState<ToastMsg | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
@@ -67,10 +68,20 @@ export default function AskPalette() {
   };
 
   // Suggestions only highlight what's on screen — never navigate, never act.
-  const showOnly = (key: string | null, answer: string, query: string) => {
-    say(query, answer);
+  // The toast may offer a button; going there is the user's tap, not autonomous.
+  const showOnly = (key: string | null, answer: string, query: string, action?: { label: string; go: string; spot?: string }) => {
+    setToast({ text: answer, action });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 6000);
     setOpen(false);
     if (key) pulse(key);
+  };
+
+  const goThere = (action: { label: string; go: string; spot?: string }) => {
+    router.push(action.go);
+    const target = action.spot;
+    if (target) setTimeout(() => pulse(target), 600);
+    setToast((t) => (t ? { text: t.text } : t));
   };
 
   // Dismiss pulse on any click (attached late so the originating click doesn't clear it).
@@ -110,7 +121,7 @@ export default function AskPalette() {
   }, [spot]);
 
   const say = (query: string, answer: string) => {
-    setToast(answer);
+    setToast({ text: answer });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 4500);
   };
@@ -142,23 +153,33 @@ export default function AskPalette() {
     // The 4 fixed questions — handled first with chained pulsing nav → target.
     const isSettingsQ = q.includes("setting") && (q.startsWith("where") || q.includes("where"));
     const isLiamQ = q.includes("liam") && (q.includes("edit") || q.includes("contact"));
-    const isExportQ = !isLiamQ && (q.includes("export") || q.includes("backup") || q.includes("back up"));
-    const isOpenTasksQ = !isLiamQ && !isExportQ && q.includes("task") && (q.includes("open") || q.includes("all") || q.includes("get") || q.includes("my"));
+    const isBackupQ = !isLiamQ && (q.includes("backup") || q.includes("back up") || q.includes("export") || q.includes("import"));
+    const isOpenTasksQ = !isLiamQ && !isBackupQ && q.includes("task") && (q.includes("open") || q.includes("all") || q.includes("get") || q.includes("my"));
 
     if (isSettingsQ) {
       if (path === "/settings") {
         say(label, "You're already on the Settings page — goal, backup and reset are all here.");
         setOpen(false);
       } else {
-        showOnly("nav-settings", "Settings lives in the sidebar — highlighted for you.", label);
+        showOnly("nav-settings", "Settings lives in the sidebar — highlighted for you.", label, {
+          label: "Open Settings",
+          go: "/settings",
+        });
       }
       return;
     }
-    if (isExportQ) {
+    if (isBackupQ) {
+      const wantsImport = q.includes("import");
+      const target = wantsImport ? "import-backup-btn" : "export-backup-btn";
+      const verb = wantsImport ? "Import backup" : "Export backup";
       if (path === "/settings") {
-        showOnly("export-backup-btn", "Click the highlighted Export backup button to download a JSON backup.", label);
+        showOnly(target, `Click the highlighted ${verb} button.`, label);
       } else {
-        showOnly("nav-settings", "Go to Settings (sidebar), then click Export backup.", label);
+        showOnly("nav-settings", `${verb} lives in Settings — highlighted in the sidebar.`, label, {
+          label: "Open Settings",
+          go: "/settings",
+          spot: target,
+        });
       }
       return;
     }
@@ -166,15 +187,23 @@ export default function AskPalette() {
       if (path === "/tasks") {
         showOnly("tasks-open-filter", "Click the highlighted Open button to see all your open tasks.", label);
       } else {
-        showOnly("nav-tasks", "Go to Tasks (sidebar), then click Open to see all open tasks.", label);
+        showOnly("nav-tasks", "Open tasks live under Tasks — highlighted in the sidebar.", label, {
+          label: "Open Tasks",
+          go: "/tasks",
+          spot: "tasks-open-filter",
+        });
       }
       return;
     }
     if (isLiamQ) {
       if (path === "/contacts") {
-        showOnly("edit-contact-Liam Fox", "Click the highlighted Edit button on Liam Fox's row to change his details.", label);
+        showOnly("edit-contact-Liam Fox", "Click the highlighted Edit button on Liam Fox's row.", label);
       } else {
-        showOnly("nav-contacts", "Go to Contacts (sidebar), then click Edit on Liam Fox's row.", label);
+        showOnly("nav-contacts", "Liam Fox is in Contacts — highlighted in the sidebar.", label, {
+          label: "Open Contacts",
+          go: "/contacts",
+          spot: "edit-contact-Liam Fox",
+        });
       }
       return;
     }
@@ -479,7 +508,15 @@ export default function AskPalette() {
       )}
       {toast && !guide && (
         <div className="toast-slide-in fixed bottom-3 left-4 z-40 max-w-sm rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white shadow-2xl dark:bg-white dark:text-zinc-900">
-          {toast}
+          <span>{toast.text}</span>
+          {(() => {
+            const a = toast.action;
+            return a ? (
+              <button onClick={() => goThere(a)} className="ml-2 font-medium underline underline-offset-2 hover:opacity-80">
+                {a.label} →
+              </button>
+            ) : null;
+          })()}
         </div>
       )}
     </>
